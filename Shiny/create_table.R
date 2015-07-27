@@ -15,11 +15,6 @@ restaurant_data <- dbGetQuery(con, "SELECT * FROM food_tb") %>%
   .[, -1]
 dbDisconnect(con)
 
-input_address <- "50 Milk Street"
-input_distance <- 1
-input_price <- c("$", "$$", "$$$", "$$$$")
-
-
 create_table <- function(input_address, input_distance, input_price){
   
   address_call <- paste0("https://maps.googleapis.com/maps/api/geocode/json?address=",
