@@ -10,7 +10,7 @@ library(dplyr)
 library(randomForest)
 library(glmnet)
 library(ROCR)
-library(DBI)
+library(ggplot2)
 
 set.seed(2348) # set seed for reproducibility
 
@@ -221,7 +221,26 @@ lasso_auc <- predict(lasso_mod,
 
 # Variable importance
 
-varImpPlot(rf_mod, n.var = 10, main = "Variable Importance", ylab = "Importance")
+rf_importance <- as.data.frame(rf_mod$importance) %>%
+  mutate(food = row.names(.)) %>%
+  arrange(desc(MeanDecreaseGini)) %>%
+  head(n = 10)
+
+names(rf_importance)[1] <- "Importance"
+rf_importance$food <- factor(rf_importance$food, levels = rev(rf_importance$food))
+
+pdf("Figure/rf_imp.pdf", width = 5, height = 5)
+ggplot(aes(x = food, y = Importance), data = rf_importance) + 
+  geom_point(size = 3) + 
+  scale_y_continuous(breaks = 4:10) + 
+  labs(x = "Food\n", y = "\nImportance") +
+  coord_flip() + 
+  theme_bw() + 
+  ggtitle("Variable Importance\n") +
+  theme(axis.title = element_text(size = 16),
+        axis.text = element_text(size = 16),
+        title = element_text(face = "bold", size = 16))
+dev.off()
 
 # Plot ROC curve
 

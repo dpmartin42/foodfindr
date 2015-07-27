@@ -138,8 +138,10 @@ def get_menu_tags(html_menu, base_url):
     menu_response = urllib2.urlopen(menu_request).read()
     menu_soup = BeautifulSoup(menu_response)
     tags = re.findall("setTargeting\('cuisine'.*", str(menu_soup))
+    features = re.findall("Gluten Free Items", str(menu_soup))
     
-    return(tags)
+    return([tags, features])
+
  
 if __name__ == "__main__":
 
@@ -149,13 +151,19 @@ if __name__ == "__main__":
     
     restaurant_data = get_restaurant_info("http://boston.menupages.com/restaurants/all-areas/all-neighborhoods/all-cuisines/", base_url)
     
-    restaurant_tags = []
-    
-    for i in range(1846, len(restaurant_data['link'])):
-        restaurant_tags.append(get_menu_tags(restaurant_data['link'][i], base_url))
+    tags_and_features = []
+
+    for i in range(len(restaurant_data['link'])):
+        tags_and_features.append(get_menu_tags(restaurant_data['link'][i], base_url)) 
         print i
         
+        
+    restaurant_tags = [item[0] for item in tags_and_features]
+    restaurant_features = [item[1] for item in tags_and_features]
+    clean_features = [1 if 'Gluten Free Items' in x else 0 for x in restaurant_features]
+    
     restaurant_data.loc[:,('tags')] = restaurant_tags
+    restaurant_data.loc[:,('isGluten')] = clean_features
     
     restaurant_data.to_csv("../Data/restaurant_info.csv")
     

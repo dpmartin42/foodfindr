@@ -30,8 +30,6 @@ create_table <- function(input_address, input_distance, input_price){
   
   METERS_TO_MILES <- 0.000621371192
   
-  # Backwards due to coding error (NEED TO FIX)
-  
   distances <- distance(lat1 = rep(address_lat, time = nrow(restaurant_data)),
                         lon1 = rep(address_long, time = nrow(restaurant_data)),
                         lat2 = restaurant_data$latitude,
