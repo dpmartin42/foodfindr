@@ -14,6 +14,8 @@ library(ggplot2)
 
 set.seed(2348) # set seed for reproducibility
 
+# set working directory here
+
 #################
 # Read in data
 
@@ -229,8 +231,25 @@ rf_importance <- as.data.frame(rf_mod$importance) %>%
 names(rf_importance)[1] <- "Importance"
 rf_importance$food <- factor(rf_importance$food, levels = rev(rf_importance$food))
 
+# Examine partial dependence for postitive/negative
+
+partialPlot(x = rf_mod, x.var = "turkey", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "swiss", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "fried", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "bagel", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "hummus", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "roast", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "fries", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "ham", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "cucumbers", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "sauce", pred.data = testing) # negative
+
+rf_importance$new_food <- paste(as.character(rf_importance$food), c("(+)", "(+)", "(-)", "(+)", "(+)",
+                                                                    "(+)", "(-)", "(+)", "(+)", "(-)"))
+rf_importance$new_food <- factor(rf_importance$new_food, levels = rev(rf_importance$new_food))
+
 pdf("Figure/rf_imp.pdf", width = 5, height = 5)
-ggplot(aes(x = food, y = Importance), data = rf_importance) + 
+ggplot(aes(x = new_food, y = Importance), data = rf_importance) + 
   geom_point(size = 3) + 
   scale_y_continuous(breaks = 4:10) + 
   labs(x = "Food\n", y = "\nImportance") +
