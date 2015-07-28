@@ -46,8 +46,11 @@ shinyUI(navbarPage("Food Findr",
  tabPanel("Slides",
           tags$iframe(src = "https://docs.google.com/presentation/embed?id=1QemHAqv_vbBhpe09lYs_7l-f0FlS8u2g2YXWrdvxcio&amp;start=false&amp;loop=false&amp;",
                       frameborder = "0",
-                      width = "520",
-                      height = "405"))
+                      width = "960",
+                      height = "569",
+                      allowfullscreen = TRUE,
+                      mozallowfullscreen = TRUE,
+                      webkitallowfullscreen = TRUE))
   
 ))
 

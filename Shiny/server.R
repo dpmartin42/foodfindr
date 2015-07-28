@@ -2,6 +2,10 @@ library(shiny)
 library(leaflet)
 
 source("create_table.R")
+input_address = "50 Milk St"; input_distance = 1; input_price = c("$", "$$", "$$$")
+output_table <- create_table("50 Milk St", 1, c("$", "$$", "$$$"))[[2]] %>%
+  select(names, addresses, price, health_color, distance) %>%
+  rename("health rating" = health_color)
 
 shinyServer(function(input, output) {
   
@@ -11,14 +15,14 @@ shinyServer(function(input, output) {
       select(names, addresses, price, health_color, distance) %>%
       rename("health rating" = health_color)
     
-    validate(
+    shiny::validate(
       need(nrow(output_table) > 0, "I'm sorry, there are no restaurants that match your current search criteria. Please expand your search distance or try another address in the Boston area.")
     )
     
     output_table
     
   },
-  
+
   options = list(pageLength = 10)
   
   )
