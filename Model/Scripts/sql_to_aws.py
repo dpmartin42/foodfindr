@@ -32,8 +32,8 @@ if __name__ == "__main__":
     # Read in data
     the_data = pd.read_csv("../Data/restaurant_ratings.csv")
 
-    the_data.columns = ['names', 'addresses', 'latitude',
-    'longitude', 'links', 'price', 'health_color', 'isVegan', 'isVegetarian']
+    the_data.columns = ['name', 'address', 'latitude',
+    'longitude', 'link', 'price', 'health_color', 'special_diet']
     
     pandas_to_sql(the_data, 'food_db', 'food_tb')
                                 

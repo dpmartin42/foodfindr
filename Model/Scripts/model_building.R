@@ -6,13 +6,14 @@
 
 rm(list = ls())
 
+library(XML)
 library(dplyr)
 library(randomForest)
 library(glmnet)
 library(ROCR)
 library(ggplot2)
 
-set.seed(2348) # set seed for reproducibility
+set.seed(1492) # set seed for reproducibility
 
 # set working directory here
 
@@ -22,16 +23,43 @@ set.seed(2348) # set seed for reproducibility
 restaurant_data <- read.csv("Data/restaurant_info.csv") %>%
   mutate(tags = gsub(".*'cuisine', |);\n", "", as.character(tags)))
 
+# Fix html in restaurant names
+
+html2txt <- function(str) {
+  xpathApply(htmlParse(str, asText=TRUE),
+             "//body//text()", 
+             xmlValue)[[1]] 
+}
+
+fixed_names <- c(NA)
+
+for(i in 1:length(restaurant_data$name)){
+  
+  fixed_names[i] <- html2txt(as.character(restaurant_data$name[i]))
+
+}
+
+restaurant_data$name <- fixed_names
+
+# Create vegan/vegetarian variables for the application
+
+restaurant_data$isVegan <- ifelse(grepl("vegan", restaurant_data$tags), "vegan", "")
+restaurant_data$isVegetarian <- ifelse(grepl("vegetarian", restaurant_data$tags), "vegetarian-friendly", "")
+restaurant_data$isGluten <- ifelse(restaurant_data$isGluten == 1, "gluten-free", "")
+restaurant_data <- within(restaurant_data, special_diet <- paste(isVegan, isVegetarian, isGluten))
+
 # Set healthy labels based on tags:
 # vegan, vegetarian, local/organic, health food, and sandwiches (but not pizza)
 
 restaurant_data$isHealthy <- NA
 restaurant_data$isHealthy[grep("vegan|vegetarian|local|salads|health-food|sandwiches", restaurant_data$tags)] <- 1
+restaurant_data$isHealthy[grep("\\['seafood'\\]|\\['sushi'\\]", restaurant_data$tags)] <- 1
 restaurant_data$isHealthy[grep("pizza", restaurant_data$tags)] <- 0
 restaurant_data$isHealthy[is.na(restaurant_data$isHealthy)] <- 0
 restaurant_data$isHealthy <- factor(restaurant_data$isHealthy)
 
-summary(restaurant_data$isHealthy) # 28% "healthy"
+summary(restaurant_data$isHealthy) # 23% "healthy"
+487/(487 + 1671)
 
 menu_data <- read.csv("Data/menu_words.csv")
 
@@ -235,17 +263,17 @@ rf_importance$food <- factor(rf_importance$food, levels = rev(rf_importance$food
 
 partialPlot(x = rf_mod, x.var = "turkey", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "swiss", pred.data = testing) # positive
-partialPlot(x = rf_mod, x.var = "fried", pred.data = testing) # negative
-partialPlot(x = rf_mod, x.var = "bagel", pred.data = testing) # positive
-partialPlot(x = rf_mod, x.var = "hummus", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "roast", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "hummus", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "fries", pred.data = testing) # negative
-partialPlot(x = rf_mod, x.var = "ham", pred.data = testing) # positive
-partialPlot(x = rf_mod, x.var = "cucumbers", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "bagel", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "garlic", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "fried", pred.data = testing) # negative
 partialPlot(x = rf_mod, x.var = "sauce", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "cucumbers", pred.data = testing) # positive
 
-rf_importance$new_food <- paste(as.character(rf_importance$food), c("(+)", "(+)", "(-)", "(+)", "(+)",
-                                                                    "(+)", "(-)", "(+)", "(+)", "(-)"))
+rf_importance$new_food <- paste(as.character(rf_importance$food), c("(+)", "(+)", "(+)", "(+)", "(-)",
+                                                                    "(+)", "(-)", "(-)", "(-)", "(+)"))
 rf_importance$new_food <- factor(rf_importance$new_food, levels = rev(rf_importance$new_food))
 
 pdf("Figure/rf_imp.pdf", width = 5, height = 5)
@@ -270,7 +298,7 @@ rf_roc <- predict(rf_mod, type = "prob", newdata = testing[, 1:1000])[, 2] %>%
 pdf("Figure/auc_rf.pdf", width = 5, height = 5)
 plot(rf_roc, main = "ROC Curve for Random Forest (Bag-of-Words)", col = 2, lwd = 2)
 abline(a = 0, b = 1, lwd = 2, lty = 2, col = "gray")
-text(x = 0.1, y = 0.85, labels = paste("AUC =", round(rf_auc, 2)))
+text(x = 0.1, y = 0.9, labels = paste("AUC =", round(rf_auc, 2)))
 dev.off()
 
 restaurant_data$new_pred <- predict(rf_mod, type = "prob", newdata = menu_sub)[, 2]
@@ -291,13 +319,8 @@ restaurant_data$health_color = as.character(cut(restaurant_data$new_pred,
                                     include.lowest = TRUE,
                                     labels = c("red", "yellow", "green")))
 
-# Include vegan, vegetarian-friendly, and gluten-free
-
-restaurant_data$isVegan <- ifelse(grepl("vegan", restaurant_data$tags), 1, 0)
-restaurant_data$isVegetarian <- ifelse(grepl("vegetarian", restaurant_data$tags), 1, 0)
-
 select(restaurant_data, name, address, latitude, longitude, link,
-       price, health_color, isVegan, isVegetarian) %>%
+       price, health_color, special_diet) %>%
   write.csv("Data/restaurant_ratings.csv", row.names = FALSE)
 
 #########################
@@ -306,30 +329,33 @@ select(restaurant_data, name, address, latitude, longitude, link,
 # places that were on
 # menupages
 
-restaurant_data[2022, ]
+restaurant_data[720, ]
 
-# Ariana Restaurant: 97 - YELLOW (0.04)
-# Root: 1578 - GREEN (0.752) 
-# Lucy Ethiopian Cafe: 1139 - YELLOW (.08)
-# Snappy Sushi: 1705 - YELLOW (.12)
-# Trident: 2016 - GREEN (0.312)
-# Erbaluce: 720 - YELLOW (0.056)
-# Elephant Walk: 703 - YELLOW (.15)
-# EVOO: 727 - GREEN (0.71)
-# Life Alive: 1107 - GREEN (0.8)
-# Oleana: 1322 - YELLOW (0.08)
-# Blu: 267 - YELLOW (0.09)
-# Post 390: 1478 - GREEN (0.24)
-# Ten Tables x 2: 1842, 1843 - GREENx2 (0.69, 0.68)
-# Vee Vee: 2053 - GREEN (0.68)
-# True Bistro: 2022 - GREEN (0.72)
-# Legal Harborside: 1099 - YELLOW (0.06)
-# Stephi's in Southie: 1745 - YELLOW (0.05)
-# Myer's + Chang: 1269 - GREEN (0.31)
-# Teranga: 1845 - GREEN (0.23)
+# Ariana Restaurant: 97 - YELLOW
+# Root: 1578 - GREEN 
+# Lucy Ethiopian Cafe: 1139 - YELLOW 
+# Snappy Sushi: 1705 - GREEN
+# Trident: 2016 - YELLOW
+# Erbaluce: 720 - RED
+# Elephant Walk: 703 - YELLOW 
+# EVOO: 727 - GREEN 
+# Life Alive: 1107 - GREEN 
+# Oleana: 1322 - YELLOW 
+# Blu: 267 - YELLOW 
+# Post 390: 1478 - GREEN 
+# Ten Tables x 2: 1842, 1843 - GREENx2 
+# Vee Vee: 2053 - YELLOW
+# True Bistro: 2022 - GREEN 
+# Legal Harborside: 1099 - GREEN
+# Stephi's in Southie: 1745 - YELLOW 
+# Myer's + Chang: 1269 - GREEN 
+# Teranga: 1845 - YELLOW
 
-# 11 green
+# 10 green
 # 9 yellow
+# 1 red
+
+restaurant_data[2022, ]
 
 # Beat Hotel: 212 - YELLOW (0.20)
 # b.good: 157 - GREEN (0.99)
@@ -340,6 +366,8 @@ restaurant_data[2022, ]
 
 # 5 green, 1 yellow
 
+restaurant_data[1358, ]
+
 # Healthiest chains
 
 # ABP: 118 - GREEN (1.0)
@@ -349,6 +377,6 @@ restaurant_data[2022, ]
 
 # 4 green
 
-# Total: 20 green, 10 yellow
+# Total: 19 green, 10 yellow, 1 red
 
 

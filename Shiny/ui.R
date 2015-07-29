@@ -31,12 +31,21 @@ shinyUI(navbarPage("Food Findr",
               
               tags$hr(),
               
+              checkboxGroupInput("restrictions", 
+                                 label = "Dietary restrictions", 
+                                 choices = list("Vegetarian-friendly" = "vegetarian-friendly", 
+                                                "Vegan" = "vegan",
+                                                "Gluten-free" = "gluten-free"),
+                                 selected = c()),
+              
+              tags$hr(),
+              
               submitButton("Update View")
               
             ),
             
             mainPanel(tabsetPanel(
-              tabPanel("Map", leafletOutput("mymap", width = 800, height = 550)), 
+              tabPanel("Map", leafletOutput("mymap", width = 800, height = 600)), 
               tabPanel("Table", dataTableOutput("restaurants"))
             )
             )

@@ -15,7 +15,12 @@ restaurant_data <- dbGetQuery(con, "SELECT * FROM food_tb") %>%
   .[, -1]
 dbDisconnect(con)
 
-create_table <- function(input_address, input_distance, input_price){
+# input_address <- "50 Milk Street"
+# input_distance <- 1
+# input_price <- c("$", "$$", "$$$", "$$$$", "$$$$$")
+# input_restrictions <- c("gluten-free", "vegetarian")
+
+create_table <- function(input_address, input_distance, input_price, input_restrictions){
   
   address_call <- paste0("https://maps.googleapis.com/maps/api/geocode/json?address=",
                          input_address,
@@ -39,8 +44,11 @@ create_table <- function(input_address, input_distance, input_price){
   
   restaurant_data$health_color <- factor(restaurant_data$health_color, levels = c("green", "yellow", "red"))
   
-  restaurant_sub <- select(restaurant_data, names, addresses, price, health_color, distance, longitude, latitude, links) %>%
-    filter(price %in% input_price, distance < input_distance) %>%
+  restaurant_sub <- select(restaurant_data, name, address, price, health_color, distance,
+                           longitude, latitude, link, special_diet) %>%
+    filter(price %in% input_price,
+           distance < input_distance, 
+           grepl(paste(input_restrictions, collapse = "|"), special_diet)) %>%
     arrange(health_color, distance)
   
   return(list(c(address_long, address_lat), restaurant_sub))
