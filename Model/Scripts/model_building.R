@@ -13,7 +13,7 @@ library(glmnet)
 library(ROCR)
 library(ggplot2)
 
-set.seed(1492) # set seed for reproducibility
+set.seed(1260) # set seed for reproducibility
 
 # set working directory here
 
@@ -53,13 +53,13 @@ restaurant_data <- within(restaurant_data, special_diet <- paste(isVegan, isVege
 
 restaurant_data$isHealthy <- NA
 restaurant_data$isHealthy[grep("vegan|vegetarian|local|salads|health-food|sandwiches", restaurant_data$tags)] <- 1
-restaurant_data$isHealthy[grep("\\['seafood'\\]|\\['sushi'\\]", restaurant_data$tags)] <- 1
+restaurant_data$isHealthy[grep("\\['seafood'\\]", restaurant_data$tags)] <- 1
 restaurant_data$isHealthy[grep("pizza", restaurant_data$tags)] <- 0
 restaurant_data$isHealthy[is.na(restaurant_data$isHealthy)] <- 0
 restaurant_data$isHealthy <- factor(restaurant_data$isHealthy)
 
-summary(restaurant_data$isHealthy) # 23% "healthy"
-487/(487 + 1671)
+summary(restaurant_data$isHealthy) # 22% "healthy"
+485/(485 + 1673)
 
 menu_data <- read.csv("Data/menu_words.csv")
 
@@ -67,7 +67,10 @@ menu_data <- read.csv("Data/menu_words.csv")
 # EDA on word counts
 # (python only kept top 5000)
 
-plot(sort(colSums(menu_data[, -1]), decreasing = TRUE))
+pdf("Figure/word_count.pdf", height = 5, width = 5)
+plot(sort(colSums(menu_data[, -1]), decreasing = TRUE),
+     main = "Total Word Count", xlab = "", ylab = "Frequency Count")
+dev.off()
 
 # Keep only the top 1000 words
 
@@ -151,7 +154,8 @@ for(num_cond in 1:nrow(conditions)){
 
 conditions
 
-# Fairly close, but ntree = 500 and mtry = sqrt(predictors) seems to work best (0.887)
+# Fairly close, but ntree = 500 and mtry = 10 seems to work best
+# with traditional frequency weighting
 
 # Run a LASSO model for both frequency counts and tf-idf weighting
 
@@ -169,7 +173,7 @@ for(i in 1:5){
                       alpha = 1, family = 'binomial',
                       lambda = lambda_freq$lambda.1se)
   
-  auc_freq <- predict(lasso_freq,
+  auc_freq[i] <- predict(lasso_freq,
                       type = "response",
                       s = 'lambda.min',
                       newx = as.matrix(training[training$fold == i, 1:1000])) %>%
@@ -212,15 +216,14 @@ mean(auc_idf)
 # and a LASSO
 
 rf_mod <- randomForest(x = training[, 1:1000],
-                       y = training[, 1001])
+                       y = training[, 1001],
+                       mtry = 10)
 
 rf_auc <- predict(rf_mod, type = "prob", newdata = testing[, 1:1000])[, 2] %>%
   prediction(testing[, 1001]) %>%
   performance("auc") %>%
   slot("y.values") %>%
   unlist()
-
-# AUC for random forest with traditional defaults is 86
 
 lasso_lambda <- cv.glmnet(x = as.matrix(training[, 1:1000]),
                           y = training[, 1001],
@@ -264,22 +267,22 @@ rf_importance$food <- factor(rf_importance$food, levels = rev(rf_importance$food
 partialPlot(x = rf_mod, x.var = "turkey", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "swiss", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "roast", pred.data = testing) # positive
-partialPlot(x = rf_mod, x.var = "hummus", pred.data = testing) # positive
-partialPlot(x = rf_mod, x.var = "fries", pred.data = testing) # negative
-partialPlot(x = rf_mod, x.var = "bagel", pred.data = testing) # positive
-partialPlot(x = rf_mod, x.var = "garlic", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "cheddar", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "fried", pred.data = testing) # negative
-partialPlot(x = rf_mod, x.var = "sauce", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "bagel", pred.data = testing) # positive
 partialPlot(x = rf_mod, x.var = "cucumbers", pred.data = testing) # positive
+partialPlot(x = rf_mod, x.var = "sauce", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "provolone", pred.data = testing) # negative
+partialPlot(x = rf_mod, x.var = "hummus", pred.data = testing) # positive
 
 rf_importance$new_food <- paste(as.character(rf_importance$food), c("(+)", "(+)", "(+)", "(+)", "(-)",
-                                                                    "(+)", "(-)", "(-)", "(-)", "(+)"))
+                                                                    "(+)", "(+)", "(-)", "(-)", "(+)"))
 rf_importance$new_food <- factor(rf_importance$new_food, levels = rev(rf_importance$new_food))
 
 pdf("Figure/rf_imp.pdf", width = 5, height = 5)
 ggplot(aes(x = new_food, y = Importance), data = rf_importance) + 
   geom_point(size = 3) + 
-  scale_y_continuous(breaks = 4:10) + 
+  scale_y_continuous(breaks = c(2.5, 3, 3.5, 4, 4.5, 5)) + 
   labs(x = "Food\n", y = "\nImportance") +
   coord_flip() + 
   theme_bw() + 
@@ -296,7 +299,7 @@ rf_roc <- predict(rf_mod, type = "prob", newdata = testing[, 1:1000])[, 2] %>%
   performance("tpr", "fpr")
 
 pdf("Figure/auc_rf.pdf", width = 5, height = 5)
-plot(rf_roc, main = "ROC Curve for Random Forest (Bag-of-Words)", col = 2, lwd = 2)
+plot(rf_roc, main = "Receiver Operating Characteristic (ROC) Curve", col = 2, lwd = 2)
 abline(a = 0, b = 1, lwd = 2, lty = 2, col = "gray")
 text(x = 0.1, y = 0.9, labels = paste("AUC =", round(rf_auc, 2)))
 dev.off()
@@ -311,7 +314,6 @@ select(restaurant_data, name, new_pred) %>%
   arrange(new_pred) %>%
   head(n = 50)
 
-plot(density(restaurant_data$new_pred))
 summary(restaurant_data$new_pred)
 
 restaurant_data$health_color = as.character(cut(restaurant_data$new_pred,
@@ -329,54 +331,54 @@ select(restaurant_data, name, address, latitude, longitude, link,
 # places that were on
 # menupages
 
-restaurant_data[720, ]
+table(restaurant_data[c(97, 1578, 1139, 1705, 2016, 720, 703, 727, 1107, 1322, 267, 1478,
+                  1842, 1843, 2053, 2022, 1099, 1745, 1269, 1845), "health_color"])
 
 # Ariana Restaurant: 97 - YELLOW
 # Root: 1578 - GREEN 
 # Lucy Ethiopian Cafe: 1139 - YELLOW 
-# Snappy Sushi: 1705 - GREEN
-# Trident: 2016 - YELLOW
-# Erbaluce: 720 - RED
+# Snappy Sushi: 1705 - YELLOW
+# Trident: 2016 - GREEN
+# Erbaluce: 720 - YELLOW
 # Elephant Walk: 703 - YELLOW 
-# EVOO: 727 - GREEN 
+# EVOO: 727 - YELLOW
 # Life Alive: 1107 - GREEN 
 # Oleana: 1322 - YELLOW 
 # Blu: 267 - YELLOW 
-# Post 390: 1478 - GREEN 
+# Post 390: 1478 - YELLOW
 # Ten Tables x 2: 1842, 1843 - GREENx2 
-# Vee Vee: 2053 - YELLOW
+# Vee Vee: 2053 - GREEN
 # True Bistro: 2022 - GREEN 
-# Legal Harborside: 1099 - GREEN
+# Legal Harborside: 1099 - YELLOW
 # Stephi's in Southie: 1745 - YELLOW 
 # Myer's + Chang: 1269 - GREEN 
 # Teranga: 1845 - YELLOW
 
-# 10 green
-# 9 yellow
-# 1 red
+# 8 green
+# 12 yellow
 
-restaurant_data[2022, ]
+table(restaurant_data[c(212, 157, 1107, 1258, 1578, 2022), "health_color"])
 
-# Beat Hotel: 212 - YELLOW (0.20)
-# b.good: 157 - GREEN (0.99)
-# Life Alive: 1107 - GREEN (0.8)
-# Mother Juice: 1258 - GREEN (0.61)
-# Root: 1578 - GREEN (0.75) 
-# True Bistro: 2022 - GREEN (0.72)
+# Beat Hotel: 212 - YELLOW 
+# b.good: 157 - GREEN 
+# Life Alive: 1107 - GREEN
+# Mother Juice: 1258 - GREEN
+# Root: 1578 - GREEN 
+# True Bistro: 2022 - GREEN 
 
 # 5 green, 1 yellow
 
-restaurant_data[1358, ]
+table(restaurant_data[c(118, 363, 573, 1358), "health_color"])
 
 # Healthiest chains
 
-# ABP: 118 - GREEN (1.0)
-# Brueggers: 363 - GREEN (.98)
-# Cosi: 573 - GREEN (.99)
-# Panera: 1358 - GREEN (.98)
+# ABP: 118 - GREEN 
+# Brueggers: 363 - GREEN 
+# Cosi: 573 - GREEN 
+# Panera: 1358 - GREEN 
 
 # 4 green
 
-# Total: 19 green, 10 yellow, 1 red
+# Total: 19 green, 11 yellow
 
 

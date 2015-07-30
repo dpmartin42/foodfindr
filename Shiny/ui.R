@@ -1,14 +1,15 @@
 library(shiny)
 library(leaflet)
 
-shinyUI(navbarPage(theme = "bootstrap.min.css", "Food Findr",
+shinyUI(navbarPage("Food Findr", 
  tabPanel("Interactive Map",
           
     div(class = "outer",
         
         tags$head(
           
-          includeCSS("styles.css")
+          includeCSS("styles.css"),
+          includeCSS("bootstrap.min.css")
           
           ),
         

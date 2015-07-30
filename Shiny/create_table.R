@@ -44,12 +44,14 @@ create_table <- function(input_address, input_distance, input_price, input_restr
   
   restaurant_data$health_color <- factor(restaurant_data$health_color, levels = c("green", "yellow", "red"))
   
-  restaurant_sub <- select(restaurant_data, name, address, price, health_color, distance,
-                           longitude, latitude, link, special_diet) %>%
+  restaurant_sub <- select(restaurant_data, name, address, price, distance,
+                           longitude, latitude, link, health_color, special_diet) %>%
     filter(price %in% input_price,
            distance < input_distance, 
            grepl(paste(input_restrictions, collapse = "|"), special_diet)) %>%
     arrange(health_color, distance)
+  
+  names(restaurant_sub)[1:4] <- c("Name", "Address", "Price", "Distance")
   
   return(list(c(address_long, address_lat), restaurant_sub))
   

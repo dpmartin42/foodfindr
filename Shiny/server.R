@@ -8,9 +8,9 @@ shinyServer(function(input, output) {
   output$restaurants <- renderDataTable({
     
     output_table <- create_table(input$address, input$distance, input$price, input$restrictions)[[2]] %>%
-      select(name, address, price, health_color, distance, special_diet) %>%
-      rename("health rating" = health_color,
-             "dietary restriction" = special_diet)
+      select(Name, Address, Price, health_color, Distance, special_diet) %>%
+      rename("Health Rating" = health_color,
+             "Dietary Restriction" = special_diet)
     
     shiny::validate(
       need(nrow(output_table) > 0, "I'm sorry, there are no restaurants that match your current search criteria. Please expand your search distance or try another address in the Boston area.")
@@ -41,8 +41,8 @@ shinyServer(function(input, output) {
       
       output_table$link <- gsub("/$", "", output_table$link)
       
-      output_table$content <- paste0("<b><a href='http://boston.menupages.com", output_table$link, "' target='_blank'>", output_table$name, "</a></b>") %>%
-        paste("<center>", ., output_table$address, output_table$price, output_table$special_diet, "</center>", sep = "<br/>")
+      output_table$content <- paste0("<b><a href='http://boston.menupages.com", output_table$link, "' target='_blank'>", output_table$Name, "</a></b>") %>%
+        paste("<center>", ., output_table$Address, output_table$Price, output_table$special_diet, "</center>", sep = "<br/>")
       
       pal <- colorFactor(c("green", "yellow", "red"), levels = c("green", "yellow", "red"))
       
