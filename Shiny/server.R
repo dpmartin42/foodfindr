@@ -3,7 +3,7 @@ library(leaflet)
 
 source("create_table.R")
 
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
   
   output$restaurants <- renderDataTable({
     
@@ -17,13 +17,13 @@ shinyServer(function(input, output) {
     )
     
     output_table
-    
+
   },
 
   options = list(pageLength = 10)
   
   )
-  
+ 
   output$mymap <- renderLeaflet({
     
     output_data <- create_table(input$address, input$distance, input$price, input$restrictions)
