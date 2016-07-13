@@ -189,7 +189,6 @@ if __name__ == "__main__":
     train_data_features = train_data_features.toarray()
     
     food_df = pd.DataFrame(train_data_features, columns = CountVectorizer.get_feature_names(vectorizer), index = restaurant_data['link'])
-    food_df.to_csv("../Data/menu_words.csv")
 
     
     

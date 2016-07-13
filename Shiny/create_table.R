@@ -2,7 +2,7 @@
 # create_table:
 # function to create a table of restaurants
 
-library(DBI)
+library(readr)
 library(dplyr)
 library(RCurl)
 library(SDMTools)
@@ -10,10 +10,7 @@ library(jsonlite)
 
 # Drop first column of row numbers after pulling from database
 
-con <- dbConnect(RMySQL::MySQL(), db = "food_db")
-restaurant_data <- dbGetQuery(con, "SELECT * FROM food_tb") %>%
-  .[, -1]
-dbDisconnect(con)
+restaurant_data <- read_csv("data/restaurant_ratings.csv")
 
 create_table <- function(input_address, input_distance, input_price, input_restrictions){
   
