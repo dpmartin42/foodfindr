@@ -19,4 +19,4 @@ The Shiny folder houses the application, which is an interactive map designed to
 input (such as current address, maximum distance, cost preference, and dietary restrictions) 
 and plots the corresponding restaurants on the map. This app was created using shiny along 
 with the leaflet package in R and deployed to a Shiny Server using amazon web services. 
-The application and slides for my presentation can be seen on my [project website](www.food-findr.com).
+The application and slides for my presentation can be seen on my [project website](https://dpmartin42.shinyapps.io/foodfindr/).
