@@ -2,6 +2,7 @@
 # create_table:
 # function to create a table of restaurants
 
+library(readr)
 library(DBI)
 library(dplyr)
 library(RCurl)
@@ -10,10 +11,20 @@ library(jsonlite)
 
 # Drop first column of row numbers after pulling from database
 
-con <- dbConnect(RMySQL::MySQL(), db = "food_db")
-restaurant_data <- dbGetQuery(con, "SELECT * FROM food_tb") %>%
-  .[, -1]
-dbDisconnect(con)
+# con <- dbConnect(RMySQL::MySQL(), db = "food_db")
+# restaurant_data <- dbGetQuery(con, "SELECT * FROM food_tb") %>%
+#   .[, -1]
+# dbDisconnect(con)
+
+restaurant_data <- read_csv("data/restaurant_ratings.csv")
+
+input_address <- "50 Milk Street"
+input_distance <- 1
+input_price <- "" #  c("$", "$$")
+input_restrictions <- ""
+
+
+
 
 create_table <- function(input_address, input_distance, input_price, input_restrictions){
   
@@ -36,11 +47,10 @@ create_table <- function(input_address, input_distance, input_price, input_restr
                         lon2 = restaurant_data$longitude)
   
   restaurant_data$distance <- round(distances$distance * METERS_TO_MILES, 2)
-  
   restaurant_data$health_color <- factor(restaurant_data$health_color, levels = c("green", "yellow", "red"))
   
-  restaurant_sub <- select(restaurant_data, name, address, price, distance,
-                           longitude, latitude, link, health_color, special_diet) %>%
+  restaurant_sub <- restaurant_data %>% 
+    select(name, address, price, distance, longitude, latitude, link, health_color, special_diet) %>%
     filter(price %in% input_price,
            distance < input_distance, 
            grepl(paste(input_restrictions, collapse = "|"), special_diet)) %>%
