@@ -13,7 +13,11 @@ shinyServer(function(input, output, session) {
              "Dietary Restriction" = special_diet)
     
     shiny::validate(
-      need(nrow(output_table) > 0, "I'm sorry, there are no restaurants that match your current search criteria. Please expand your search distance or try another address in the Boston area.")
+      need(nrow(output_table) > 0,
+      "I'm sorry, there are no restaurants that match your current search criteria.
+      Please expand your search distance or try another address in the Greater Boston area.
+      Be sure to include city and state (e.g., Boston, MA or Cambridge, MA) to help 
+      identify the correct location.")
     )
     
     output_table
@@ -31,30 +35,28 @@ shinyServer(function(input, output, session) {
     output_location <- output_data[[1]]
     output_table <- output_data[[2]]
     
-    if(nrow(output_table) == 0){
+    shiny::validate(
+      need(nrow(output_table) > 0,
+           "\n\tI'm sorry, there are no restaurants that match your current search criteria.
+           Please expand your search distance or try another address in the Greater Boston area.
+           Be sure to include city and state (e.g., Boston, MA or Cambridge, MA) to help 
+           identify the correct location.")
+      )
+    
+    output_table$link <- gsub("/$", "", output_table$link)
       
-      leaflet() %>% 
-        setView(lng = output_location[1], lat = output_location[2], zoom = 16) %>%
-        addProviderTiles("CartoDB.Positron")
-
-    } else{
+    output_table$content <- paste0("<b>", output_table$Name, "</b>") %>%
+      paste("<center>", ., output_table$Address, output_table$Price, output_table$special_diet, "</center>", sep = "<br/>")
       
-      output_table$link <- gsub("/$", "", output_table$link)
+    pal <- colorFactor(c("green", "yellow", "red"), levels = c("green", "yellow", "red"))
       
-      output_table$content <- paste0("<b><a href='http://boston.menupages.com", output_table$link, "' target='_blank'>", output_table$Name, "</a></b>") %>%
-        paste("<center>", ., output_table$Address, output_table$Price, output_table$special_diet, "</center>", sep = "<br/>")
-      
-      pal <- colorFactor(c("green", "yellow", "red"), levels = c("green", "yellow", "red"))
-      
-      leaflet(output_table) %>% 
-        setView(lng = output_location[1], lat = output_location[2], zoom = 16) %>%
-        addProviderTiles("CartoDB.Positron") %>%
-        addCircleMarkers(~longitude, ~latitude, popup = ~content, color = ~pal(health_color),
-                         radius = 5,
-                         stroke = FALSE,
-                         fillOpacity = 0.5)
-
-    }
+    leaflet(output_table) %>% 
+      setView(lng = output_location[1], lat = output_location[2], zoom = 16) %>%
+      addProviderTiles("CartoDB.Positron") %>%
+      addCircleMarkers(~longitude, ~latitude, popup = ~content, color = ~pal(health_color),
+                        radius = 5,
+                        stroke = FALSE,
+                        fillOpacity = 0.5)
     
   })
   

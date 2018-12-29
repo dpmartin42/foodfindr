@@ -1,70 +1,104 @@
 #############################################################
 # create_table:
 # function to create a table of restaurants
+# @param input_address address text input by the user
+# @param input_distance maximum distance input by the user
+# @param input_price price filter input by the user
+# @param input_restrictions dietary restrictions input by the user
 
 library(readr)
-<<<<<<< HEAD
-library(DBI)
-=======
->>>>>>> beeba7d11459854f1475111963390bd582024319
 library(dplyr)
 library(RCurl)
-library(SDMTools)
 library(jsonlite)
+library(SDMTools)
 
-# Drop first column of row numbers after pulling from database
+restaurant_data <- read_csv("data/restaurant_ratings.csv") %>% 
+  mutate(special_diet = if_else(is.na(special_diet), "", special_diet))
 
-<<<<<<< HEAD
-# con <- dbConnect(RMySQL::MySQL(), db = "food_db")
-# restaurant_data <- dbGetQuery(con, "SELECT * FROM food_tb") %>%
-#   .[, -1]
-# dbDisconnect(con)
+API_KEY <- read_csv("data/opencage_apikey.txt") %>% 
+  names()
 
-restaurant_data <- read_csv("data/restaurant_ratings.csv")
-
-input_address <- "50 Milk Street"
-input_distance <- 1
-input_price <- "" #  c("$", "$$")
-input_restrictions <- ""
-
-
-
-=======
-restaurant_data <- read_csv("data/restaurant_ratings.csv")
->>>>>>> beeba7d11459854f1475111963390bd582024319
+METERS_TO_MILES <- 0.000621371192
+BOSTON_COORD <- data_frame(lat = 42.36025, lng = -71.05829)
 
 create_table <- function(input_address, input_distance, input_price, input_restrictions){
   
-  address_call <- paste0("https://maps.googleapis.com/maps/api/geocode/json?address=",
-                         input_address,
-                         ",+Boston,+MA")
+  # Clean input address if it's the default
+  input_address <- if_else(input_address == "e.g., 50 Milk Street, Boston MA",
+                           "50 Milk Street, Boston MA",
+                           input_address)
   
-  address_data <- URLencode(address_call) %>%
+  address_call <- paste0("https://api.opencagedata.com/geocode/v1/json?q=",
+                         input_address,
+                         "&key=",
+                         API_KEY,
+                         "&pretty=1")
+  
+  address_data <- address_call %>%
+    URLencode() %>% 
     getURL() %>%
     fromJSON()
   
-  address_lat <- address_data$results$geometry$location$lat[1]
-  address_long <- address_data$results$geometry$location$lng[1]
+  if(address_data$total_results > 0){
+    
+    address_data_clean <- address_data$results %>% 
+      .[[c("components")]] %>% 
+      select(state_code) %>% 
+      bind_cols(address_data$results[["geometry"]],
+                data_frame(confidence = address_data$results[["confidence"]])) %>% 
+      mutate(center_lat = BOSTON_COORD$lat,
+             center_lng = BOSTON_COORD$lng) %>% 
+      mutate(distance = distance(lat1 = lat, lon1 = lng, lat2 = center_lat, lon2 = center_lng)$distance) %>% 
+      filter(state_code == "MA" & confidence > 8 & distance * METERS_TO_MILES < 7) %>% 
+      arrange(desc(confidence), distance)
+    
+    address_lat <- address_data_clean$lat[1]
+    address_long <- address_data_clean$lng[1]
   
-  METERS_TO_MILES <- 0.000621371192
+  }
   
-  distances <- distance(lat1 = rep(address_lat, time = nrow(restaurant_data)),
-                        lon1 = rep(address_long, time = nrow(restaurant_data)),
-                        lat2 = restaurant_data$latitude,
-                        lon2 = restaurant_data$longitude)
+  if(address_data$total_results == 0){
+    
+    restaurant_sub <- data_frame(Name = character(),
+                                 Address = character(),
+                                 Price = character(),
+                                 health_color = character(),
+                                 Distance = double(),
+                                 special_diet = character())
+    
+    address_lat <- NA
+    address_long <- NA
   
-  restaurant_data$distance <- round(distances$distance * METERS_TO_MILES, 2)
-  restaurant_data$health_color <- factor(restaurant_data$health_color, levels = c("green", "yellow", "red"))
-  
-  restaurant_sub <- restaurant_data %>% 
-    select(name, address, price, distance, longitude, latitude, link, health_color, special_diet) %>%
-    filter(price %in% input_price,
-           distance < input_distance, 
-           grepl(paste(input_restrictions, collapse = "|"), special_diet)) %>%
-    arrange(health_color, distance)
-  
-  names(restaurant_sub)[1:4] <- c("Name", "Address", "Price", "Distance")
-  
+  } else if(nrow(address_data_clean) == 0){
+    
+    restaurant_sub <- data_frame(Name = character(),
+                                 Address = character(),
+                                 Price = character(),
+                                 health_color = character(),
+                                 Distance = double(),
+                                 special_diet = character())
+    
+  } else{
+    
+    distances <- distance(lat1 = rep(address_lat, time = nrow(restaurant_data)),
+                          lon1 = rep(address_long, time = nrow(restaurant_data)),
+                          lat2 = restaurant_data$latitude,
+                          lon2 = restaurant_data$longitude)
+    
+    restaurant_data$distance <- round(distances$distance * METERS_TO_MILES, 2)
+    restaurant_data$health_color <- factor(restaurant_data$health_color, levels = c("green", "yellow", "red"))
+    
+    restaurant_sub <- restaurant_data %>% 
+      select(name, address, price, distance, longitude, latitude, link, health_color, special_diet) %>%
+      filter(price %in% input_price,
+             distance < input_distance, 
+             grepl(paste(input_restrictions, collapse = "|"), special_diet)) %>%
+      arrange(health_color, distance)
+    
+    names(restaurant_sub)[1:4] <- c("Name", "Address", "Price", "Distance")
+    
+  }
+
   return(list(c(address_long, address_lat), restaurant_sub))
-  
+
 }

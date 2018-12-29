@@ -1,0 +1,13 @@
+name: foodfindr
+title: foodfindr
+username:
+account: dpmartin42
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 85015
+bundleId: 1787855
+url: https://dpmartin42.shinyapps.io/foodfindr/
+when: 1546048202.65247
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .Rapp.history|data/.DS_Store

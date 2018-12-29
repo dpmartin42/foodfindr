@@ -20,10 +20,8 @@ shinyUI(navbarPage("Food Findr",
                       draggable = FALSE, top = 50, left = "auto", right = 0,
                       width = "20%", height = "100%",
                       
-                      br(),
-                      
                       textInput("address", label = "Enter your address", 
-                                value = "e.g., 50 Milk Street"),
+                                value = "e.g., 50 Milk Street, Boston MA"),
                             
                       tags$hr(),
                             
